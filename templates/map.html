@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>피시방 위치 표시</title>
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=34a49bac36ad1c22c04018888bdde355&libraries=services"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        
+    </style>
+</head>
+
+<body>
+<div id="map" style="width:100%;height:500px;"></div>
+<input type="text" id="priceInput" placeholder="요금 입력 (원)">
+<button onclick="updatePrice()">요금정보 변경하기</button>
+
+<script>
+    var mapContainer = document.getElementById('map'),
+        mapOption = {
+            center: new kakao.maps.LatLng(37.5665, 126.9784),
+            level: 3
+        };
+    var map = new kakao.maps.Map(mapContainer, mapOption);
+    var selectedMarker = null;
+    var selectedPcBang = null;
+    
+    axios.get('/data').then(function(response) {
+        var pcBangs = response.data;
+        pcBangs.forEach(function(pcBang) {
+            var markerPosition = new kakao.maps.LatLng(pcBang.y, pcBang.x);
+            var marker = new kakao.maps.Marker({ position: markerPosition });
+            marker.setMap(map);
+    
+            kakao.maps.event.addListener(marker, 'click', function() {
+                selectedMarker = marker;
+                selectedPcBang = pcBang;
+                document.getElementById('priceInput').value = pcBang.price;
+            });
+        });
+    });
+    
+    function updatePrice() {
+        var newPrice = document.getElementById('priceInput').value;
+        if (selectedPcBang && newPrice) {
+            axios.post('/update-price', {
+                name: selectedPcBang.name,
+                newPrice: newPrice
+            }).then(function(response) {
+                if (response.data.success) {
+                    alert('가격이 업데이트 되었습니다.');
+                    selectedPcBang.price = newPrice;
+                }
+            }).catch(function(error) {
+                console.error('Error:', error);
+            });
+        } else {
+            alert('마커를 선택하고 새 가격을 입력하세요.');
+        }
+    }
+    </script>
+</body>
+</html>
