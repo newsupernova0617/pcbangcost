@@ -25,40 +25,65 @@
     var map = new kakao.maps.Map(mapContainer, mapOption);
     var selectedMarker = null;
     var selectedPcBang = null;
-    
+    var currentInfowindow = null; // 현재 열린 인포윈도우를 추적하기 위한 변수
+
+
     axios.get('/data').then(function(response) {
-        var pcBangs = response.data;
-        pcBangs.forEach(function(pcBang) {
-            var markerPosition = new kakao.maps.LatLng(pcBang.y, pcBang.x);
-            var marker = new kakao.maps.Marker({ position: markerPosition });
-            marker.setMap(map);
-    
-            kakao.maps.event.addListener(marker, 'click', function() {
-                selectedMarker = marker;
-                selectedPcBang = pcBang;
-                document.getElementById('priceInput').value = pcBang.price;
-            });
+    var pcBangs = response.data;
+    pcBangs.forEach(function(pcBang) {
+        var markerPosition = new kakao.maps.LatLng(pcBang.y, pcBang.x);
+        var marker = new kakao.maps.Marker({
+            position: markerPosition
+        });
+        marker.setMap(map);
+
+        // 인포윈도우 생성 및 설정
+        var iwContent = '<div style="padding:5px;">' + pcBang.name + ' <br> ' + pcBang.price + '</div>'; // 인포윈도우에 표시할 내용
+        var infowindow = new kakao.maps.InfoWindow({
+            content: iwContent
+        });
+
+        // 마커에 클릭 이벤트를 등록합니다
+        kakao.maps.event.addListener(marker, 'click', function() {
+            // 기존에 열린 인포윈도우가 있으면 닫기
+            if (currentInfowindow) {
+                currentInfowindow.close();
+            }
+            // 새 인포윈도우 열기
+            infowindow.open(map, marker);
+            // 현재 인포윈도우로 설정
+            currentInfowindow = infowindow;
+            
+            selectedMarker = marker;
+            selectedPcBang = pcBang;
+            document.getElementById('priceInput').value = pcBang.price; // 가격 입력 필드 업데이트
         });
     });
-    
-    function updatePrice() {
-        var newPrice = document.getElementById('priceInput').value;
-        if (selectedPcBang && newPrice) {
-            axios.post('/update-price', {
-                name: selectedPcBang.name,
-                newPrice: newPrice
-            }).then(function(response) {
-                if (response.data.success) {
-                    alert('가격이 업데이트 되었습니다.');
-                    selectedPcBang.price = newPrice;
-                }
-            }).catch(function(error) {
-                console.error('Error:', error);
-            });
-        } else {
-            alert('마커를 선택하고 새 가격을 입력하세요.');
-        }
+});
+
+function updatePrice() {
+    var newPrice = document.getElementById('priceInput').value;
+    if (selectedPcBang && newPrice) {
+        axios.post('/update-price', {
+            name: selectedPcBang.name,
+            newPrice: newPrice
+        }).then(function(response) {
+            if (response.data.success) {
+                alert('가격이 업데이트 되었습니다.');
+                selectedPcBang.price = newPrice; // 클라이언트 측 데이터 업데이트
+                // 인포윈도우 내용 업데이트
+                var iwContent = '<div style="padding:5px;">' + selectedPcBang.name + ' <br> ' + newPrice + '</div>';
+                currentInfowindow.setContent(iwContent);
+                infowindow.open(map, selectedMarker);
+            }
+        }).catch(function(error) {
+            console.error('Error:', error);
+        });
+    } else {
+        alert('마커를 선택하고 새 가격을 입력하세요.');
     }
+}
     </script>
 </body>
 </html>
+
